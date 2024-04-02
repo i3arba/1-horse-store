@@ -1,0 +1,44 @@
+// Flow
+// send calldata -> function dispatch -> function
+
+// 60008060093d393df3 -> Contract Creation Bytecode
+// The contract creation above works like "Hey, take the binary after me, and stick it on-chain"
+//    -> Runtime Code
+//
+#define macro MAIN() = takes(0) returns(0){
+    //In Huff we only care about the function signature. We need to 'directioning the data'. So,
+    //We use the right shift to divide calldata into data that is util and what's not.
+    // 0x00                //[0]
+    //When the calldata is pushed to the stack, only the first 32 bytes are available.
+    //So we need to cut this down to get the function selector by shifting right.
+    // calldataload        //[calldata(32)]
+    //64 / 2 = 32 Bytes -> right
+    //56 / 2 = 28 bytes -> 224 bits
+    // 224 bits -> hex = PUSH1 0xe0
+    //We don't need to say PUSH. Huff understand it.
+    // 0xe0                //[0xe0, calldata (32)]
+    // shr                 // Now we shift to the right. And get the function selector [function_selector]
+
+    //Looks like a lot, but all of this is translate into this:
+    0x00 calldataload 0xE0 shr //[function_selector]
+
+    //Now that we have the function selector, we need to
+    // Jump -> function data associated with the selector.
+    // Basically what we need to do is:
+    // if f_selector == updatedHorseNumber -> jump to that code
+    0xcdfead2e             // [0xcdfead2e, function_selector]
+    eq                     // [true_if_func_selector_matches]
+    // jump to updateHorseNumber code if true
+    updateJump             // [updateHorseNumberProgramCounter, true/false]
+    jumpi                  // [] If the condition is true, and it executes. The stack is cleaned.
+
+
+    updateJump:
+        SET_NUMBER_OF_HORSES()
+
+
+    // if f_selector == readHorseNumber -> jump to that code
+    0xe026c017
+}
+
+#define macro SET_NUMBER_OF_HORSES() = takes(0) returns(0){}

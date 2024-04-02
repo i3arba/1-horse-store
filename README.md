@@ -1,66 +1,16 @@
-## Foundry
+# Horse Store
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+1. Write a basic simplestorage/horse store
 
-Foundry consists of:
+# Questions
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+1. Where did this data come from? How did remix know to send this data?
+- In foundry full course we learn that if we take the function name + param, we can transform it in the machine readable function signature
+    `cast sig "updateHorseNumber(uint256)`. When we call the function, solidity does a Function Dispatch/Method Dispatch to execute the function and send the data.
 
-## Documentation
+    - **What is Function Dispatch/Method Dispatch?**
+        - The algorithm used to determine which functions/commands should be run/invoked in response to a message.
+        - In the EVM, this is when a smart contract uses the first 4 bytes of a calldata to determine which function(which is a group of opcodes) to send the calldata to.
+    - **How does the EVM know how to interpret/interact with data?**
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+2. How does remix know to update this number of horses with this data?
