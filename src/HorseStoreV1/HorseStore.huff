@@ -5,7 +5,7 @@
 // The contract creation above works like "Hey, take the binary after me, and stick it on-chain"
 //    -> Runtime Code
 //
-#define macro MAIN() = takes(0) returns(0){
+// #define macro MAIN() = takes(0) returns(0){
     //In Huff we only care about the function signature. We need to 'directioning the data'. So,
     //We use the right shift to divide calldata into data that is util and what's not.
     // 0x00                //[0]
@@ -20,25 +20,76 @@
     // shr                 // Now we shift to the right. And get the function selector [function_selector]
 
     //Looks like a lot, but all of this is translate into this:
-    0x00 calldataload 0xE0 shr //[function_selector]
+    // 0x00 calldataload 0xE0 shr //[function_selector]
 
     //Now that we have the function selector, we need to
     // Jump -> function data associated with the selector.
     // Basically what we need to do is:
     // if f_selector == updatedHorseNumber -> jump to that code
-    0xcdfead2e             // [0xcdfead2e, function_selector]
-    eq                     // [true_if_func_selector_matches]
+    // dup1                   // [function_selector, function_selector] we duplicate the function selector e pass it down.
+    // 0xcdfead2e             // [0xcdfead2e, function_selector, function_selector]
+    // eq                     // [true_if_func_selector_matches, function_selector]
     // jump to updateHorseNumber code if true
-    updateJump             // [updateHorseNumberProgramCounter, true/false]
-    jumpi                  // [] If the condition is true, and it executes. The stack is cleaned.
+    // updateJump             // [updateHorseNumberProgramCounter, true/false, function_selector]
+    // jumpi                  // [x,x, function_selector] If the condition is true, and it executes. The stack is cleaned. <- Stack is not cleaned anymore, because we duplicate the function selector. Now, if the condition is false. The second function selector will persist
 
+    //readNumberOfHorses, 0xe026c017
+    // 0xe026c017             // [0xe026c017, function_selector]
+    // eq                     // [true_if_func_selector_matches, function_selector]
+    // readJump               // [readJump, true_if_func_selector_matches]
+    // jumpi                  // [] Now the stack will be clean. Because we had only two function selectors we want to compare.
+
+    // 0x00 0x00 revert       // [0,0] -> [] Its a good practice to the code didn't continue execution if the conditions are no meet. Otherwise, the code will keep going down until the bottom of the contract. This can lead to execution of code that shouldn't be executed.
+
+    // updateJump:
+    //     SET_NUMBER_OF_HORSES()
+    // readJump:
+    //     GET_NUMBER_OF_HORSES()
+
+//We don't need to cast all the functions manually. We can use an opcode that does it. First we need to define a interface with the functions as follow
+//Interface
+#define function updateHorseNumber(uint256) nonpayable returns()
+#define function readNumberOfHorses() view returns(uint256)
+
+//Constant Variable
+#define constant NUMBER_OF_HORSES_STORAGE_SLOT = FREE_STORAGE_POINTER() //Isso vai definir que será no slot 0. É o primeiro livre. Cada storage tem 32 bytes.
+
+#define macro MAIN() = takes(0) returns(0){
+    0x00 calldataload 0xE0 shr             // [function_selector]
+
+    //updateHorseNumber
+    dup1 __FUNC_SIG(updateHorseNumber) eq updateJump jumpi    // [function_selector] //We duplicate and already use one function_selector. Thats why is only one on the stack
+
+    //readNumberOfHorses
+    __FUNC_SIG(readNumberOfHorses) eq readJump jumpi           //[] we use the other one.
+
+    0x00 0x00 revert
 
     updateJump:
         SET_NUMBER_OF_HORSES()
-
-
-    // if f_selector == readHorseNumber -> jump to that code
-    0xe026c017
+    readJump:
+        GET_NUMBER_OF_HORSES()
 }
 
-#define macro SET_NUMBER_OF_HORSES() = takes(0) returns(0){}
+#define macro SET_NUMBER_OF_HORSES() = takes(0) returns(0){
+    //1. Get the value to store from the calldata
+    0x04                                                //[4] PUSH1
+    calldataload                                        //[param / value]
+    //2. Give it a storage slot
+    [NUMBER_OF_HORSES_STORAGE_SLOT]                     //[NUMBER_OF_HORSES_STORAGE_SLOT, value] -> pointer to slot 0.
+    //3. sstore opcode
+    sstore                                              //Vai armazenar o valor
+    stop                                                //Se não usar stop, o programa continuará executando e, nesse exemplo,iria gastar gás atoa chamando a função abaixo.
+}
+
+#define macro GET_NUMBER_OF_HORSES() = takes(0) returns(0){
+    //1. Get the storage slot
+    [NUMBER_OF_HORSES_STORAGE_SLOT]                     //Pointer para o Slot
+    //2. load the value from that slot
+    sload                                               //carrega o valor do slot acima
+    0x00                                                //[0, value] Pffset, value como o opcode solicita.
+    mstore                                              //[] Tiramos do Stack. Mas passamos o valor para Memória.
+    //3. return the value
+    //return opcode precisa de offset e tamanho. Então é o que passamos antes de retornar
+    0x20 0x00 return                                    //[] Removemos tudo da memória, retornamos e a função é encerrada. Não precisamos usar stop em funçãoque tem return
+}
